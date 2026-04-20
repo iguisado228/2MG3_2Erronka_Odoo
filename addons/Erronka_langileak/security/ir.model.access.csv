@@ -1,0 +1,4 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_erronka_langile,erronka.langile,model_erronka_langile,base.group_user,1,1,1,1
+access_erronka_lanpostu,erronka.lanpostu,model_erronka_lanpostu,base.group_user,1,1,1,1
+access_erronka_langile_password_wizard,erronka.langile.password.wizard,model_erronka_langile_password_wizard,base.group_system,1,1,1,1

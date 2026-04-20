@@ -3,8 +3,10 @@ services:
   web:
     container_name: ${WEB_HOST}
     image: ${WEB_IMAGE_NAME}
+    build: .
     depends_on:
       - db
+      - php_api
     ports:
       - "${WEB_PORT}:8069"
       - "${WEBSOCKET_PORT}:8072"
@@ -13,6 +15,13 @@ services:
       - ./config:/etc/odoo
       - ./addons:/mnt/extra-addons
     entrypoint: "/usr/bin/odoo -c /etc/odoo/odoo.conf --dev all"
+  php_api:
+    image: php:8.2-apache
+    command: bash -c "docker-php-ext-install pdo_mysql && apache2-foreground"
+    volumes:
+      - ../WEB-API-ODOO-CONNECT:/var/www/html
+    ports:
+      - "8090:80"
   db:
     container_name: ${DB_HOST}
     image: ${DB_IMAGE}

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_erronka_lanpostu_tree" model="ir.ui.view">
+        <field name="name">erronka.lanpostu.tree</field>
+        <field name="model">erronka.lanpostu</field>
+        <field name="arch" type="xml">
+            <tree>
+                <header>
+                    <!-- Kanpoko BBDD-tik Odoo-ra sinkronizazioa abiarazteko botoia -->
+                    <button name="sync_lanpostuak_desde_api" type="object" string="Cargar BBDD Externa" class="oe_highlight"/>
+                </header>
+                <field name="name"/>
+                <field name="sync_enabled"/>
+                <field name="active"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_erronka_lanpostu_form" model="ir.ui.view">
+        <field name="name">erronka.lanpostu.form</field>
+        <field name="model">erronka.lanpostu</field>
+        <field name="arch" type="xml">
+            <form>
+                <header>
+                    <!-- Kanpoko BBDD-tik Odoo-ra sinkronizazioa abiarazteko botoia -->
+                    <button name="sync_lanpostuak_desde_api" type="object" string="Cargar BBDD Externa" class="oe_highlight"/>
+                </header>
+                <sheet>
+                    <div class="oe_title">
+                        <h1>
+                            <field name="name"/>
+                        </h1>
+                    </div>
+                    <group>
+                        <field name="name"/>
+                        <field name="sync_enabled"/>
+                        <field name="active"/>
+                    </group>
+                </sheet>
+            </form>
+        </field>
+    </record>
+
+    <record id="view_erronka_lanpostu_search" model="ir.ui.view">
+        <field name="name">erronka.lanpostu.search</field>
+        <field name="model">erronka.lanpostu</field>
+        <field name="arch" type="xml">
+            <search>
+                <field name="name"/>
+                <filter string="Activos" name="active" domain="[('active','=',True)]"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="action_erronka_lanpostu" model="ir.actions.act_window">
+        <field name="name">Lanpostuak</field>
+        <field name="res_model">erronka.lanpostu</field>
+        <field name="view_mode">tree,form</field>
+        <field name="search_view_id" ref="view_erronka_lanpostu_search"/>
+        <field name="context">{}</field>
+    </record>
+
+    <!-- Ekintza honek gure vista zehatzak erabiltzea behartzen du (tree/form) -->
+    <record id="action_erronka_lanpostu_view_tree" model="ir.actions.act_window.view">
+        <field name="sequence" eval="1"/>
+        <field name="view_mode">tree</field>
+        <field name="view_id" ref="view_erronka_lanpostu_tree"/>
+        <field name="act_window_id" ref="action_erronka_lanpostu"/>
+    </record>
+
+    <record id="action_erronka_lanpostu_view_form" model="ir.actions.act_window.view">
+        <field name="sequence" eval="2"/>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_erronka_lanpostu_form"/>
+        <field name="act_window_id" ref="action_erronka_lanpostu"/>
+    </record>
+
+    <!-- "Acción" menutik (lista/kanban/form) sinkronizazioa exekutatzeko server action-a -->
+    <record id="action_sync_lanpostuak_desde_mysql" model="ir.actions.server">
+        <field name="name">Cargar BBDD Externa</field>
+        <field name="model_id" ref="model_erronka_lanpostu"/>
+        <field name="binding_model_id" ref="model_erronka_lanpostu"/>
+        <field name="binding_view_types">list,kanban,form</field>
+        <field name="state">code</field>
+        <field name="code">action = env['erronka.lanpostu'].sync_lanpostuak_desde_api()</field>
+    </record>
+</odoo>
