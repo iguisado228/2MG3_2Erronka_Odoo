@@ -28,7 +28,7 @@ class ErronkaLanpostu(models.Model):
 
     @api.model
     def _api_base_url(self):
-        return os.environ.get("ERRONKA_API_BASE_URL", "http://192.168.1.11:5101")
+        return os.environ.get("ERRONKA_API_BASE_URL", "http://192.168.10.5:5000")
 
     @api.model
     def _api_request(self, method, path, payload=None, params=None):
