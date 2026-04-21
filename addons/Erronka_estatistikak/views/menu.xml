@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- Estatistikak aplikazio independentea: bere menua dauka -->
+    <menuitem id="menu_erronka_estatistikak_root" name="Estatistikak" action="action_erronka_estatistikak_open_dashboard" sequence="30"/>
+
+    <menuitem id="menu_erronka_estatistikak_dashboard" name="Dashboard" parent="menu_erronka_estatistikak_root" action="action_erronka_estatistikak_open_dashboard" sequence="5"/>
+    <menuitem id="menu_erronka_estatistikak_salmentak" name="Salmentak" parent="menu_erronka_estatistikak_root" action="action_erronka_estatistikak_open_salmentak" sequence="10"/>
+    <menuitem id="menu_erronka_estatistikak_produktuak" name="Produktuak" parent="menu_erronka_estatistikak_root" action="action_erronka_estatistikak_open_produktuak" sequence="20"/>
+    <menuitem id="menu_erronka_estatistikak_stocka" name="Stocka" parent="menu_erronka_estatistikak_root" action="action_erronka_estatistikak_open_stocka" sequence="30"/>
+    <menuitem id="menu_erronka_estatistikak_eguneratu" name="Eguneratu" parent="menu_erronka_estatistikak_root" action="action_erronka_estatistika_eguneratu_wizard" sequence="40"/>
+</odoo>

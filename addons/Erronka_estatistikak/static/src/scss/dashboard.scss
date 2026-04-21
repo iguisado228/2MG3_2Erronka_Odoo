@@ -1,0 +1,10 @@
+.o-dashboard-header,
+.o_dashboard_header,
+.o_dashboard_header_btns,
+.o_dashboard_header_buttons,
+.o_board_controller .o_dashboard_header,
+.o_control_panel .o_dashboard_header,
+.o_board_controller .o-dashboard-header,
+.o_control_panel .o-dashboard-header {
+    display: none !important;
+}

@@ -1,0 +1,6 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+access_erronka_estatistika_salmenta,erronka.estatistika.salmenta,model_erronka_estatistika_salmenta,base.group_user,1,1,1,1
+access_erronka_estatistika_produktua,erronka.estatistika.produktua,model_erronka_estatistika_produktua,base.group_user,1,1,1,1
+access_erronka_estatistika_osagaia_stock,erronka.estatistika.osagaia_stock,model_erronka_estatistika_osagaia_stock,base.group_user,1,1,1,1
+access_erronka_estatistika_dashboard,erronka.estatistika.dashboard,model_erronka_estatistika_dashboard,base.group_user,1,1,1,1
+access_erronka_estatistika_eguneratu_wizard,erronka.estatistika.eguneratu.wizard,model_erronka_estatistika_eguneratu_wizard,base.group_user,1,1,1,1
