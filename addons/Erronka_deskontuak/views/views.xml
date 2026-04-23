@@ -1,0 +1,72 @@
+<odoo>
+  <data>
+    <!-- Zerrenda Bista (Tree) -->
+    <record model="ir.ui.view" id="deskontuak_deskontua_list_view">
+      <field name="name">deskontuak.deskontua.list</field>
+      <field name="model">deskontuak.deskontua</field>
+      <field name="arch" type="xml">
+        <tree decoration-muted="not aktiboa">
+          <field name="name"/>
+          <field name="mota"/>
+          <field name="balioa"/>
+          <field name="hasiera_data"/>
+          <field name="amaiera_data"/>
+          <field name="aktiboa"/>
+        </tree>
+      </field>
+    </record>
+
+    <!-- Inprimaki Bista (Form) -->
+    <record model="ir.ui.view" id="deskontuak_deskontua_form_view">
+      <field name="name">deskontuak.deskontua.form</field>
+      <field name="model">deskontuak.deskontua</field>
+      <field name="arch" type="xml">
+        <form>
+          <sheet>
+            <div class="oe_title">
+              <h1>
+                <field name="name" placeholder="Deskontu kodea..."/>
+              </h1>
+            </div>
+            <group>
+              <group>
+                <field name="mota"/>
+                <field name="balioa"/>
+                <field name="aktiboa"/>
+              </group>
+              <group>
+                <field name="hasiera_data"/>
+                <field name="amaiera_data"/>
+              </group>
+            </group>
+            <notebook>
+              <page string="Deskribapena">
+                <field name="deskribapena"/>
+              </page>
+            </notebook>
+          </sheet>
+        </form>
+      </field>
+    </record>
+
+    <!-- Ekintza bistak irekitzeko -->
+    <record model="ir.actions.act_window" id="deskontuak_deskontua_action">
+      <field name="name">Deskontu Kodeak</field>
+      <field name="res_model">deskontuak.deskontua</field>
+      <field name="view_mode">tree,form</field>
+      <field name="help" type="html">
+        <p class="o_view_nocontent_smiling_face">
+          Sortu zure lehenengo deskontu kodea
+        </p>
+      </field>
+    </record>
+
+    <!-- Menuak -->
+    <menuitem name="Deskontuak" id="deskontuak_menu_root" web_icon="deskontuak,static/description/icon.png"/>
+    
+    <menuitem name="Kudeaketa" id="deskontuak_menu_kudeaketa" parent="deskontuak_menu_root"/>
+    
+    <menuitem name="Deskontu Kodeak" id="deskontuak_menu_deskontuak" parent="deskontuak_menu_kudeaketa"
+              action="deskontuak_deskontua_action"/>
+  </data>
+</odoo>

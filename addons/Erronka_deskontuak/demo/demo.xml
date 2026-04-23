@@ -1,0 +1,19 @@
+<odoo>
+    <data>
+        <record id="deskontu_demo_1" model="deskontuak.deskontua">
+            <field name="name">UDARA2026</field>
+            <field name="mota">ehunekoa</field>
+            <field name="balioa">15.0</field>
+            <field name="aktiboa">True</field>
+            <field name="deskribapena">Udako %15eko deskontua</field>
+        </record>
+
+        <record id="deskontu_demo_2" model="deskontuak.deskontua">
+            <field name="name">ONGIETORRI</field>
+            <field name="mota">finkoa</field>
+            <field name="balioa">5.0</field>
+            <field name="aktiboa">True</field>
+            <field name="deskribapena">5€-ko deskontu finkoa erabiltzaile berrientzat</field>
+        </record>
+    </data>
+</odoo>
