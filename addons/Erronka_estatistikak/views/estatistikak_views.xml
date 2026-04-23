@@ -57,6 +57,40 @@ action["context"] = dict(env.context)
         </field>
     </record>
 
+    <record id="view_erronka_estatistika_salmenta_graph" model="ir.ui.view">
+        <field name="name">erronka.estatistika.salmenta.graph</field>
+        <field name="model">erronka.estatistika.salmenta</field>
+        <field name="arch" type="xml">
+            <graph string="Salmentak" type="line">
+                <field name="ticket_batezbestekoa" type="measure" operator="avg"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_erronka_estatistika_produktua_graph" model="ir.ui.view">
+        <field name="name">erronka.estatistika.produktua.graph</field>
+        <field name="model">erronka.estatistika.produktua</field>
+        <field name="arch" type="xml">
+            <graph string="Produktuak" type="bar">
+                <field name="kantitatea" type="measure"/>
+                <field name="diru_totala" type="measure"/>
+                <field name="produktua_izena" type="row"/>
+                <field name="eguna" type="col"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_erronka_estatistika_osagaia_stock_graph" model="ir.ui.view">
+        <field name="name">erronka.estatistika.osagaia_stock.graph</field>
+        <field name="model">erronka.estatistika.osagaia_stock</field>
+        <field name="arch" type="xml">
+            <graph string="Stocka" type="bar">
+                <field name="stock" type="measure"/>
+                <field name="osagaia_izena" type="row"/>
+            </graph>
+        </field>
+    </record>
+
     <!-- Dashboard-eko grafiko txikiak egiteko ekintzak -->
     <record id="action_erronka_estatistika_salmenta_graph_only" model="ir.actions.act_window">
         <field name="name">Salmentak</field>
@@ -182,16 +216,6 @@ action["context"] = dict(env.context)
         </field>
     </record>
 
-    <record id="view_erronka_estatistika_salmenta_graph" model="ir.ui.view">
-        <field name="name">erronka.estatistika.salmenta.graph</field>
-        <field name="model">erronka.estatistika.salmenta</field>
-        <field name="arch" type="xml">
-            <graph string="Salmentak" type="line">
-                <field name="ticket_batezbestekoa" type="measure" operator="avg"/>
-            </graph>
-        </field>
-    </record>
-
     <record id="view_erronka_estatistika_salmenta_search" model="ir.ui.view">
         <field name="name">erronka.estatistika.salmenta.search</field>
         <field name="model">erronka.estatistika.salmenta</field>
@@ -233,19 +257,6 @@ action["context"] = dict(env.context)
         </field>
     </record>
 
-    <record id="view_erronka_estatistika_produktua_graph" model="ir.ui.view">
-        <field name="name">erronka.estatistika.produktua.graph</field>
-        <field name="model">erronka.estatistika.produktua</field>
-        <field name="arch" type="xml">
-            <graph string="Produktuak" type="bar">
-                <field name="kantitatea" type="measure"/>
-                <field name="diru_totala" type="measure"/>
-                <field name="produktua_izena" type="row"/>
-                <field name="eguna" type="col"/>
-            </graph>
-        </field>
-    </record>
-
     <record id="action_erronka_estatistika_produktua" model="ir.actions.act_window">
         <field name="name">Produktuak</field>
         <field name="res_model">erronka.estatistika.produktua</field>
@@ -267,17 +278,6 @@ action["context"] = dict(env.context)
                 <field name="prezioa"/>
                 <field name="azken_eguneraketa"/>
             </tree>
-        </field>
-    </record>
-
-    <record id="view_erronka_estatistika_osagaia_stock_graph" model="ir.ui.view">
-        <field name="name">erronka.estatistika.osagaia_stock.graph</field>
-        <field name="model">erronka.estatistika.osagaia_stock</field>
-        <field name="arch" type="xml">
-            <graph string="Stocka" type="bar">
-                <field name="stock" type="measure"/>
-                <field name="osagaia_izena" type="row"/>
-            </graph>
         </field>
     </record>
 

@@ -1,0 +1,3 @@
+id,name,model_id:id,group_id:id,perm_read,perm_write,perm_create,perm_unlink
+sarbidea_erronka_eguneko_produktu_topa_erabiltzailea,sarbidea.erronka.eguneko.produktu.topa.erabiltzailea,model_erronka_eguneko_produktu_topa,base.group_user,1,1,1,1
+sarbidea_erronka_eguneko_produktu_topa_morroia_erabiltzailea,sarbidea.erronka.eguneko.produktu.topa.morroia.erabiltzailea,model_erronka_eguneko_produktu_topa_morroia,base.group_user,1,1,1,1

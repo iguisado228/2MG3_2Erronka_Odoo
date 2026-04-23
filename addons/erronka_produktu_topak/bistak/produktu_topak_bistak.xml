@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="view_erronka_eguneko_produktu_topa_morroia_form" model="ir.ui.view">
+        <field name="name">erronka.eguneko.produktu.topa.morroia.form</field>
+        <field name="model">erronka.eguneko.produktu.topa.morroia</field>
+        <field name="arch" type="xml">
+            <form string="Produktu topak sortu">
+                <group>
+                    <group>
+                        <field name="hasiera_data"/>
+                        <field name="amaiera_data"/>
+                    </group>
+                    <group>
+                        <field name="top_muga"/>
+                        <field name="iturburua_eguneratu"/>
+                    </group>
+                </group>
+                <footer>
+                    <button name="action_sortu" type="object" string="Sortu" class="btn-primary"/>
+                    <button string="Utzi" class="btn-secondary" special="cancel"/>
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_erronka_eguneko_produktu_topa_morroia" model="ir.actions.act_window">
+        <field name="name">Eguneko produktu topak</field>
+        <field name="res_model">erronka.eguneko.produktu.topa.morroia</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_erronka_eguneko_produktu_topa_morroia_form"/>
+        <field name="target">new</field>
+    </record>
+
+    <record id="view_erronka_eguneko_produktu_topa_search" model="ir.ui.view">
+        <field name="name">erronka.eguneko.produktu.topa.search</field>
+        <field name="model">erronka.eguneko.produktu.topa</field>
+        <field name="arch" type="xml">
+            <search string="Eguneko produktu topak">
+                <field name="produktua_izena"/>
+                <field name="eguna"/>
+                <field name="hasiera_data"/>
+                <field name="amaiera_data"/>
+                <filter string="Egunaren arabera taldekatu" name="taldekatu_eguna" context="{'group_by': 'eguna'}"/>
+                <filter string="Produktuaren arabera taldekatu" name="taldekatu_produktua" context="{'group_by': 'produktua_izena'}"/>
+            </search>
+        </field>
+    </record>
+
+    <record id="view_erronka_eguneko_produktu_topa_tree" model="ir.ui.view">
+        <field name="name">erronka.eguneko.produktu.topa.tree</field>
+        <field name="model">erronka.eguneko.produktu.topa</field>
+        <field name="arch" type="xml">
+            <tree
+                string="Eguneko produktu topak"
+                default_order="eguna desc, posizioa asc"
+                expand="1"
+                decoration-success="posizioa == 1"
+                decoration-bf="posizioa == 1"
+                decoration-primary="eguneko_azkena"
+            >
+                <field name="eguna"/>
+                <field name="posizioa"/>
+                <field name="produktua_izena"/>
+                <field name="kantitatea"/>
+                <field name="diru_totala"/>
+                <field name="eguneko_azkena" optional="hide"/>
+                <field name="hasiera_data" optional="hide"/>
+                <field name="amaiera_data" optional="hide"/>
+            </tree>
+        </field>
+    </record>
+
+    <record id="view_erronka_eguneko_produktu_topa_graph" model="ir.ui.view">
+        <field name="name">erronka.eguneko.produktu.topa.graph</field>
+        <field name="model">erronka.eguneko.produktu.topa</field>
+        <field name="arch" type="xml">
+            <graph string="Eguneko produktu topak" type="bar">
+                <field name="eguna" interval="day"/>
+                <field name="produktua_izena"/>
+                <field name="kantitatea" type="measure"/>
+            </graph>
+        </field>
+    </record>
+
+    <record id="view_erronka_eguneko_produktu_topa_pivot" model="ir.ui.view">
+        <field name="name">erronka.eguneko.produktu.topa.pivot</field>
+        <field name="model">erronka.eguneko.produktu.topa</field>
+        <field name="arch" type="xml">
+            <pivot string="Eguneko produktu topak">
+                <field name="eguna" type="row" interval="day"/>
+                <field name="produktua_izena" type="col"/>
+                <field name="kantitatea" type="measure"/>
+                <field name="diru_totala" type="measure"/>
+            </pivot>
+        </field>
+    </record>
+
+    <record id="action_erronka_eguneko_produktu_topa" model="ir.actions.act_window">
+        <field name="name">Produktu topen emaitzak</field>
+        <field name="res_model">erronka.eguneko.produktu.topa</field>
+        <field name="view_mode">tree,graph,pivot</field>
+        <field name="search_view_id" ref="view_erronka_eguneko_produktu_topa_search"/>
+        <field name="context">{'search_default_taldekatu_eguna': 1}</field>
+        <field name="help" type="html">
+            <p>Sortu lehenengo data-tarte bat egun bakoitzean gehien saldu diren produktuak ikusteko.</p>
+        </field>
+    </record>
+</odoo>

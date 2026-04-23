@@ -1,0 +1,8 @@
+.o_list_view .o_data_row.text-primary td {
+    border-bottom: 3px solid #8b8f97 !important;
+    color: inherit !important;
+}
+
+.o_list_view .o_data_row.text-primary + .o_data_row td {
+    padding-top: 10px;
+}

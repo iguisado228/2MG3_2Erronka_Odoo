@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <menuitem
+        id="menu_erronka_produktu_topak_erroa"
+        name="Produktu Topak"
+        sequence="35"
+        action="action_erronka_eguneko_produktu_topa_morroia"
+    />
+
+    <menuitem
+        id="menu_erronka_produktu_topak_sortu"
+        name="Sortu"
+        parent="menu_erronka_produktu_topak_erroa"
+        sequence="10"
+        action="action_erronka_eguneko_produktu_topa_morroia"
+    />
+
+    <menuitem
+        id="menu_erronka_produktu_topak_emaitzak"
+        name="Emaitzak"
+        parent="menu_erronka_produktu_topak_erroa"
+        sequence="20"
+        action="action_erronka_eguneko_produktu_topa"
+    />
+</odoo>
