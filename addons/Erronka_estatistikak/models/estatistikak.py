@@ -15,7 +15,12 @@ class ErronkaApiMixin(models.AbstractModel):
     # API helbidea ingurune-aldagai bidez konfiguratzen da, Docker/host egoeretara egokitzeko
     @api.model
     def _api_base_url(self):
-        return os.environ.get("ERRONKA_API_BASE_URL", "http://192.168.10.5:5000")
+        #return os.environ.get("ERRONKA_API_BASE_URL", "http://192.168.10.5:5000")
+        return (
+            os.environ.get("ERRONKA_API_BASE_URL")
+            or os.environ.get("ERRONKA_API_URL")
+            or "http://host.docker.internal:5101"
+        )
 
     # HTTP deia egin eta JSON erantzuna bueltatzen du; erroreak UserError moduan erakusten ditu
     @api.model

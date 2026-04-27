@@ -4,6 +4,9 @@ services:
     container_name: ${WEB_HOST}
     image: ${WEB_IMAGE_NAME}
     build: .
+    environment:
+      - ERRONKA_API_BASE_URL=${ERRONKA_API_BASE_URL}
+      - ERRONKA_API_URL=${ERRONKA_API_URL}
     depends_on:
       - db
       - php_api
