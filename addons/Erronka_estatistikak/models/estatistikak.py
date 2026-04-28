@@ -9,20 +9,18 @@ from odoo.exceptions import UserError
 
 
 class ErronkaApiMixin(models.AbstractModel):
+    # Mixin modukoa: beste modeloek heredatzen dute, APIarekin egiteko “tresnak” hemen daude.
+    # Ideia: Salmentak/Produktuak/Stocka modeloek ez dute API kodea errepikatzen.
     _name = "erronka.api.mixin"
     _description = "Erronka API utilitateak"
 
-    # API helbidea ingurune-aldagai bidez konfiguratzen da, Docker/host egoeretara egokitzeko
+    # API helbidea: ingurune-aldagai bidez alda daiteke (docker/hosten arabera), kodea ukitu gabe.
     @api.model
     def _api_base_url(self):
-        #return os.environ.get("ERRONKA_API_BASE_URL", "http://192.168.10.5:5000")
-        return (
-            os.environ.get("ERRONKA_API_BASE_URL")
-            or os.environ.get("ERRONKA_API_URL")
-            or "http://host.docker.internal:5101"
-        )
+        return os.environ.get("ERRONKA_API_BASE_URL", "http://192.168.5.150:5101")
 
-    # HTTP deia egin eta JSON erantzuna bueltatzen du; erroreak UserError moduan erakusten ditu
+    # APIari deia: method + path → JSON bueltatzen du.
+    # Huts egiten badu, UserError botatzen du (Odoo-n popup moduan agertzeko).
     @api.model
     def _api_request(self, method, path, payload=None, params=None):
         try:
@@ -34,6 +32,7 @@ class ErronkaApiMixin(models.AbstractModel):
         headers = {"Content-Type": "application/json"}
 
         try:
+            # Hemen egiten da benetako HTTP request-a
             resp = requests.request(
                 method=method,
                 url=url,
@@ -44,6 +43,7 @@ class ErronkaApiMixin(models.AbstractModel):
             )
             resp.raise_for_status()
         except Exception as exc:
+            # Errorea dagoenean, ahal bada APIko erantzunaren testua jasotzen saiatzen da (laguntzeko).
             details = ""
             resp_obj = locals().get("resp")
             if resp_obj is not None:
@@ -59,14 +59,16 @@ class ErronkaApiMixin(models.AbstractModel):
             raise UserError(_("API deian errorea: %(error)s") % {"error": str(exc)}) from exc
 
         if resp.status_code == 204 or not resp.content:
+            # 204 = edukirik ez. Horrelakoetan None itzultzen dugu.
             return None
 
         try:
             return resp.json()
         except Exception as exc:
+            # API-k ez badu JSON ondo ematen, Odoo-n errore ulergarri bat erakutsi
             raise UserError(_("API erantzuna ez da JSON baliozkoa.")) from exc
 
-    # APIko datetime testu bat Python datetime bihurtzeko laguntzailea (formato ezberdinak jasateko)
+    # APIko data/ordu testuak batzuetan formatu ezberdinetan datoz; hau “normalizatzeko” da.
     @api.model
     def _parse_api_datetime(self, value):
         if not value:
@@ -83,6 +85,22 @@ class ErronkaApiMixin(models.AbstractModel):
                 except Exception:
                     return None
         return None
+
+    @api.model
+    def _replace_all(self, vals_list):
+        # Sinkronizazio estiloa: aurreko erregistroak ezabatu, eta berriak sortu.
+        # Hau ondo dago “source of truth” APIa denean.
+        self.sudo().search([]).unlink()
+        if vals_list:
+            self.sudo().create(vals_list)
+        return True
+
+    @api.model
+    def action_eguneratu(self):
+        # UIko botoiak (XML-eko button type="object") metodo hau deitzen du normalean.
+        # Lehenengo datuak eguneratu eta gero pantaila reload.
+        self._eguneratu_datuak()
+        return {"type": "ir.actions.client", "tag": "reload"}
 
 
 class ErronkaEstatistikaSalmenta(models.Model):
@@ -102,11 +120,13 @@ class ErronkaEstatistikaSalmenta(models.Model):
     eguna_key_year = fields.Char(string="Urtea (gakoa)", compute="_compute_eguna_keys", store=True, index=True)
 
     _sql_constraints = [
+        # Egun bakoitzeko lerro bakarra: bestela grafikoan datuak bikoiztuta aterako lirateke.
         ("eguna_unique", "unique(eguna)", "Egun bakoitzeko erregistro bakarra egon daiteke."),
     ]
 
     @api.depends("eguna")
     def _compute_eguna_keys(self):
+        # Hauek “group by” egiteko giltzak dira (egun/mes/hiruhileko/urte).
         for record in self:
             if not record.eguna:
                 record.eguna_key_day = False
@@ -122,15 +142,18 @@ class ErronkaEstatistikaSalmenta(models.Model):
             record.eguna_key_quarter = f"{d.year}-Q{quarter}"
             record.eguna_key_year = str(d.year)
 
-    # Salmentak API-tik berrikalkulatu eta Odoo-n gordetzen ditu (grafikoak egiteko)
+    # Salmentak API-tik hartu, egunaren arabera batu, eta Odoo-n gordetzen du (grafikoetarako).
     @api.model
     def _eguneratu_datuak(self):
+        # API-tik erreserbak ekarri
         erreserbak = self._api_request("GET", "/api/Erreserbak") or []
 
+        # Egun bakoitzerako totalak eta kopuruak kalkulatzeko map-a
         by_day = {}
         for r in erreserbak:
             if not isinstance(r, dict):
                 continue
+            # Ordainduta ez badago, ez dugu kontuan hartzen
             if int(r.get("ordainduta") or 0) != 1:
                 continue
 
@@ -144,7 +167,7 @@ class ErronkaEstatistikaSalmenta(models.Model):
             agg["amount"] += amount
             agg["count"] += 1
 
-        self.sudo().search([]).unlink()
+        # Odoo-n sortuko ditugun erregistroen lista prestatzen
         vals_list = []
         for day, agg in sorted(by_day.items(), key=lambda x: x[0]):
             count = int(agg["count"])
@@ -158,15 +181,8 @@ class ErronkaEstatistikaSalmenta(models.Model):
                     "ticket_batezbestekoa": avg,
                 }
             )
-        if vals_list:
-            self.sudo().create(vals_list)
-        return True
-
-    # UI-tik botoia sakatzean erabiltzen da: datuak eguneratu eta pantaila berriz kargatu
-    @api.model
-    def action_eguneratu(self):
-        self._eguneratu_datuak()
-        return {"type": "ir.actions.client", "tag": "reload"}
+        # DB-a “garbi” uzten du: dena ordezkatzen du azken kalkuluarekin
+        return self._replace_all(vals_list)
 
 
 class ErronkaEstatistikaProduktua(models.Model):
@@ -182,15 +198,18 @@ class ErronkaEstatistikaProduktua(models.Model):
     diru_totala = fields.Float(string="Diru totala", required=True)
 
     _sql_constraints = [
+        # Egun + produktu + ordainduta konbinazioa bakarra: datuak ez bikoizteko.
         ("day_product_unique", "unique(eguna, produktua_id, ordainduta)", "Egun/produktua/ordainduta konbinazioa bakarra izan behar da."),
     ]
 
-    # Produktu arrakastatsuen estatistikak API-tik kalkulatu eta Odoo-n gordetzen ditu
+    # Produktuen estatistikak: erreserbak + eskariak lotu, eta produktu bakoitzeko agregatu.
     @api.model
     def _eguneratu_datuak(self):
+        # Bi endpoint: erreserbak (data + ordainduta) eta eskariak (produktuak)
         erreserbak = self._api_request("GET", "/api/Erreserbak") or []
         eskariak = self._api_request("GET", "/api/Eskariak") or []
 
+        # Erreserba bakoitzari eguna eta paid egoera “indexatu” (join azkarra egiteko)
         erreserba_index = {}
         for r in erreserbak:
             if not isinstance(r, dict):
@@ -206,6 +225,7 @@ class ErronkaEstatistikaProduktua(models.Model):
                 "paid": int(r.get("ordainduta") or 0) == 1,
             }
 
+        # Hemen batzen ditugu kantitateak eta dirua produktuaren arabera
         agg = {}
         for e in eskariak:
             if not isinstance(e, dict):
@@ -220,6 +240,7 @@ class ErronkaEstatistikaProduktua(models.Model):
             day = info["day"]
             paid = bool(info["paid"])
 
+            # Eskari barruko produktu bakoitza prozesatu
             for p in e.get("produktuak") or []:
                 if not isinstance(p, dict):
                     continue
@@ -230,12 +251,13 @@ class ErronkaEstatistikaProduktua(models.Model):
                 if pid is None or qty <= 0:
                     continue
 
+                # Gakoa: egun + produktu + izena + paid → horren barruan pilatzen dugu
                 key = (day, int(pid), pname, paid)
                 a = agg.setdefault(key, {"qty": 0, "amount": 0.0})
                 a["qty"] += qty
                 a["amount"] += qty * price
 
-        self.sudo().search([]).unlink()
+        # DB-ra bidaltzeko erregistro zerrenda prestatzen
         vals_list = []
         for (day, pid, pname, paid), a in sorted(agg.items(), key=lambda x: (x[0][0], x[0][2])):
             vals_list.append(
@@ -248,15 +270,8 @@ class ErronkaEstatistikaProduktua(models.Model):
                     "diru_totala": float(a["amount"]),
                 }
             )
-        if vals_list:
-            self.sudo().create(vals_list)
-        return True
-
-    # UI-tik botoia sakatzean erabiltzen da: datuak eguneratu eta pantaila berriz kargatu
-    @api.model
-    def action_eguneratu(self):
-        self._eguneratu_datuak()
-        return {"type": "ir.actions.client", "tag": "reload"}
+        # Azken emaitza: dena ordezkatu
+        return self._replace_all(vals_list)
 
 
 class ErronkaEstatistikaOsagaiaStock(models.Model):
@@ -271,17 +286,18 @@ class ErronkaEstatistikaOsagaiaStock(models.Model):
     azken_eguneraketa = fields.Datetime(string="Azken eguneraketa", required=True, default=lambda self: fields.Datetime.now())
 
     _sql_constraints = [
+        # Osagai bakoitzak erregistro bakarra: id-a unique.
         ("osagaia_unique", "unique(osagaia_id)", "Osagai bakoitzeko erregistro bakarra egon daiteke."),
     ]
 
-    # Osagaien stocka API-tik sinkronizatu eta Odoo-n gordetzen du
+    # Stocka: API-tik osagai zerrenda hartu eta Odoo-n sinkronizatu.
     @api.model
     def _eguneratu_datuak(self):
         osagaiak = self._api_request("GET", "/api/Osagaiak") or []
 
-        self.sudo().search([]).unlink()
         vals_list = []
         now = fields.Datetime.now()
+        # APIko osagai bakoitza Odoo-ko erregistro bihurtu
         for o in osagaiak:
             if not isinstance(o, dict):
                 continue
@@ -297,15 +313,8 @@ class ErronkaEstatistikaOsagaiaStock(models.Model):
                     "azken_eguneraketa": now,
                 }
             )
-        if vals_list:
-            self.sudo().create(vals_list)
-        return True
-
-    # UI-tik botoia sakatzean erabiltzen da: datuak eguneratu eta pantaila berriz kargatu
-    @api.model
-    def action_eguneratu(self):
-        self._eguneratu_datuak()
-        return {"type": "ir.actions.client", "tag": "reload"}
+        # Stock taula ere “source of truth” moduan: beti ordezkatu azkenarekin
+        return self._replace_all(vals_list)
 
 
 class ErronkaEstatistikaDashboard(models.TransientModel):
@@ -323,13 +332,16 @@ class ErronkaEstatistikaDashboard(models.TransientModel):
 
     @api.model
     def default_get(self, fields_list):
+        # Dashboard-a irekitzean automatikoki kalkulatzeko (form-a bete aurretik).
         res = super().default_get(fields_list)
 
+        # Salmentetatik totalak eta batezbestekoa atera
         salmentak = self.env["erronka.estatistika.salmenta"].sudo().search([])
         total = sum(s.salmenta_totala for s in salmentak)
         count = sum(s.erreserba_kopurua for s in salmentak)
         avg = total / count if count else 0.0
 
+        # Ordaindutako produktuetatik top produktua kalkulatu (kantitate gehien duena)
         produktuak = self.env["erronka.estatistika.produktua"].sudo().search([("ordainduta", "=", True)])
         top = {}
         for p in produktuak:
@@ -339,6 +351,7 @@ class ErronkaEstatistikaDashboard(models.TransientModel):
         if top:
             top_name, top_qty = max(top.items(), key=lambda x: x[1])
 
+        # Stock gutxiko osagaiak kontatu (hemen <10 jarrita dago)
         stock_gutxi = self.env["erronka.estatistika.osagaia_stock"].sudo().search([("stock", "<", 10)])
 
         res.update(
@@ -358,9 +371,10 @@ class ErronkaEstatistikaEguneratuWizard(models.TransientModel):
     _name = "erronka.estatistika.eguneratu.wizard"
     _description = "Estatistikak eguneratzeko wizard-a"
 
-    # Wizard honek hiru taulak batera eguneratzeko botoia eskaintzen du
+    # Wizard/popup hau “dena batera eguneratu” egiteko da, erabiltzaileak klik bakarrean egin dezan.
     def action_eguneratu_dena(self):
-        self.env["erronka.estatistika.salmenta"]._eguneratu_datuak()
-        self.env["erronka.estatistika.produktua"]._eguneratu_datuak()
-        self.env["erronka.estatistika.osagaia_stock"]._eguneratu_datuak()
+        # Hiru modeloak eguneratu (salmenta + produktua + stocka)
+        for model in ("erronka.estatistika.salmenta", "erronka.estatistika.produktua", "erronka.estatistika.osagaia_stock"):
+            self.env[model]._eguneratu_datuak()
+        # Popup-a ixteko action bat bueltatzen dugu
         return {"type": "ir.actions.act_window_close"}
