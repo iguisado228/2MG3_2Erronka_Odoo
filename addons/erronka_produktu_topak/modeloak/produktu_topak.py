@@ -13,6 +13,7 @@ class ErronkaProduktuTopApiMixina(models.AbstractModel):
     _name = "erronka.produktu.top.api.mixina"
     _description = "Produktu topetarako API mixina"
 
+    # 1. zatia: API konfigurazioa eta dei orokorrak
     def _api_base_url(self):
         return os.getenv("ERRONKA_API_URL", "http://host.docker.internal:8080").rstrip("/")
 
@@ -60,6 +61,17 @@ class ErronkaEgunekoProduktuTopa(models.Model):
     top_muga = fields.Integer(string="Eguneko top muga", required=True, readonly=True, group_operator=False)
     eguneko_azkena = fields.Boolean(string="Eguneko azkena", readonly=True, group_operator=False)
 
+    # 2. zatia: Estatistiken modulutik datozen datuak prestatzea
+    @api.model
+    def _estatistika_linea(self, erregistroa):
+        return {
+            "eguna": erregistroa.eguna,
+            "produktua_id": erregistroa.produktua_id,
+            "produktua_izena": erregistroa.produktua_izena,
+            "kantitatea": erregistroa.kantitatea,
+            "diru_totala": erregistroa.diru_totala,
+        }
+
     @api.model
     def _irakurri_iturburua_estatistiketatik(self, hasiera_data, amaiera_data, iturburua_eguneratu=False):
         iturburu_modeloa = self.env["erronka.estatistika.produktua"].sudo()
@@ -71,33 +83,36 @@ class ErronkaEgunekoProduktuTopa(models.Model):
             ("eguna", "<=", amaiera_data),
             ("ordainduta", "=", True),
         ]
-        return iturburu_modeloa.search(domain)
+        erregistroak = iturburu_modeloa.search(domain)
+        return [self._estatistika_linea(erregistroa) for erregistroa in erregistroak]
+
+    # 3. zatia: APIko erreserbak iragazi eta baliozkotu
+    @api.model
+    def _erreserba_eguna(self, erreserba):
+        if not erreserba.get("ordainduta"):
+            return False
+
+        data_testua = erreserba.get("eguna")
+        if not data_testua:
+            return False
+
+        try:
+            return fields.Date.to_date(data_testua)
+        except Exception:
+            return False
 
     @api.model
-    def _irakurri_iturburua_apitik(self, hasiera_data, amaiera_data):
-        erreserbak = self._api_request("GET", "/api/Erreserbak") or []
-        eskariak = self._api_request("GET", "/api/Eskariak") or []
-
-        hasiera = fields.Date.to_date(hasiera_data)
-        amaiera = fields.Date.to_date(amaiera_data)
-
+    def _api_erreserba_egunak(self, erreserbak, hasiera, amaiera):
         erreserba_egunak = {}
         for erreserba in erreserbak:
-            if not erreserba.get("ordainduta"):
-                continue
-
-            data_testua = erreserba.get("eguna")
-            if not data_testua:
-                continue
-
-            try:
-                eguna = fields.Date.to_date(data_testua)
-            except Exception:
-                continue
-
-            if hasiera <= eguna <= amaiera:
+            eguna = self._erreserba_eguna(erreserba)
+            if eguna and hasiera <= eguna <= amaiera:
                 erreserba_egunak[erreserba.get("id")] = eguna
+        return erreserba_egunak
 
+    # 4. zatia: APIko eskariak produktu-lerro bihurtu
+    @api.model
+    def _api_eskari_lineak(self, eskariak, erreserba_egunak):
         lineak = []
         for eskaria in eskariak:
             eguna = erreserba_egunak.get(eskaria.get("erreserbaId"))
@@ -106,15 +121,15 @@ class ErronkaEgunekoProduktuTopa(models.Model):
 
             for produktua in eskaria.get("produktuak", []):
                 produktua_id = produktua.get("produktuaId")
-                izena = produktua.get("produktuIzena")
-                if not produktua_id or not izena:
+                produktua_izena = produktua.get("produktuIzena")
+                if not produktua_id or not produktua_izena:
                     continue
 
                 lineak.append(
                     {
                         "eguna": eguna,
                         "produktua_id": int(produktua_id),
-                        "produktua_izena": izena,
+                        "produktua_izena": produktua_izena,
                         "kantitatea": int(produktua.get("kantitatea", 0) or 0),
                         "diru_totala": float(produktua.get("prezioa", 0.0) or 0.0),
                     }
@@ -122,28 +137,29 @@ class ErronkaEgunekoProduktuTopa(models.Model):
         return lineak
 
     @api.model
+    def _irakurri_iturburua_apitik(self, hasiera_data, amaiera_data):
+        erreserbak = self._api_request("GET", "/api/Erreserbak") or []
+        eskariak = self._api_request("GET", "/api/Eskariak") or []
+
+        hasiera = fields.Date.to_date(hasiera_data)
+        amaiera = fields.Date.to_date(amaiera_data)
+        erreserba_egunak = self._api_erreserba_egunak(erreserbak, hasiera, amaiera)
+        return self._api_eskari_lineak(eskariak, erreserba_egunak)
+
+    @api.model
     def _eskuratu_iturburu_lerroak(self, hasiera_data, amaiera_data, iturburua_eguneratu=False):
         if "erronka.estatistika.produktua" in self.env:
-            erregistroak = self._irakurri_iturburua_estatistiketatik(
+            return self._irakurri_iturburua_estatistiketatik(
                 hasiera_data,
                 amaiera_data,
                 iturburua_eguneratu=iturburua_eguneratu,
             )
-            return [
-                {
-                    "eguna": erregistroa.eguna,
-                    "produktua_id": erregistroa.produktua_id,
-                    "produktua_izena": erregistroa.produktua_izena,
-                    "kantitatea": erregistroa.kantitatea,
-                    "diru_totala": erregistroa.diru_totala,
-                }
-                for erregistroa in erregistroak
-            ]
 
         return self._irakurri_iturburua_apitik(hasiera_data, amaiera_data)
 
+    # 5. zatia: Sarrerak balioztatu
     @api.model
-    def _eraiki_eguneko_topa(self, hasiera_data, amaiera_data, top_muga=5, iturburua_eguneratu=False):
+    def _balioztatu_sarrerak(self, hasiera_data, amaiera_data, top_muga):
         hasiera = fields.Date.to_date(hasiera_data)
         amaiera = fields.Date.to_date(amaiera_data)
 
@@ -152,18 +168,20 @@ class ErronkaEgunekoProduktuTopa(models.Model):
         if top_muga < 1:
             raise UserError(_("Topako produktu kopurua zero baino handiagoa izan behar da."))
 
-        lineak = self._eskuratu_iturburu_lerroak(
-            hasiera_data,
-            amaiera_data,
-            iturburua_eguneratu=iturburua_eguneratu,
-        )
+        return hasiera, amaiera
 
+    # 6. zatia: Datuak batu eta egunaren arabera antolatu
+    @api.model
+    def _agregatu_lineak(self, lineak):
         agregados = defaultdict(lambda: {"kantitatea": 0, "diru_totala": 0.0})
         for linea in lineak:
             key = (linea["eguna"], linea["produktua_id"], linea["produktua_izena"])
             agregados[key]["kantitatea"] += int(linea["kantitatea"] or 0)
             agregados[key]["diru_totala"] += float(linea["diru_totala"] or 0.0)
+        return agregados
 
+    @api.model
+    def _egunekoak_prestatu(self, agregados):
         egunekoak = defaultdict(list)
         for (eguna, produktua_id, produktua_izena), balioak in agregados.items():
             egunekoak[eguna].append(
@@ -174,6 +192,41 @@ class ErronkaEgunekoProduktuTopa(models.Model):
                     "diru_totala": balioak["diru_totala"],
                 }
             )
+        return egunekoak
+
+    @api.model
+    def _eguneko_toparen_balioak(self, eguna, hautatutakoak, hasiera, amaiera, top_muga):
+        balioak = []
+        for posizioa, item in enumerate(hautatutakoak, start=1):
+            balioak.append(
+                {
+                    "eguna": eguna,
+                    "posizioa": posizioa,
+                    "produktua_id": item["produktua_id"],
+                    "produktua_izena": item["produktua_izena"],
+                    "kantitatea": item["kantitatea"],
+                    "diru_totala": item["diru_totala"],
+                    "hasiera_data": hasiera,
+                    "amaiera_data": amaiera,
+                    "top_muga": top_muga,
+                    "eguneko_azkena": posizioa == len(hautatutakoak),
+                }
+            )
+        return balioak
+
+    # 7. zatia: Eguneko topa eraiki
+    @api.model
+    def _eraiki_eguneko_topa(self, hasiera_data, amaiera_data, top_muga=5, iturburua_eguneratu=False):
+        hasiera, amaiera = self._balioztatu_sarrerak(hasiera_data, amaiera_data, top_muga)
+
+        lineak = self._eskuratu_iturburu_lerroak(
+            hasiera_data,
+            amaiera_data,
+            iturburua_eguneratu=iturburua_eguneratu,
+        )
+
+        agregados = self._agregatu_lineak(lineak)
+        egunekoak = self._egunekoak_prestatu(agregados)
 
         balio_zerrenda = []
         for eguna in sorted(egunekoak.keys()):
@@ -186,23 +239,12 @@ class ErronkaEgunekoProduktuTopa(models.Model):
                 ),
             )
             hautatutakoak = sailkatuta[:top_muga]
-            for posizioa, item in enumerate(hautatutakoak, start=1):
-                balio_zerrenda.append(
-                    {
-                        "eguna": eguna,
-                        "posizioa": posizioa,
-                        "produktua_id": item["produktua_id"],
-                        "produktua_izena": item["produktua_izena"],
-                        "kantitatea": item["kantitatea"],
-                        "diru_totala": item["diru_totala"],
-                        "hasiera_data": hasiera,
-                        "amaiera_data": amaiera,
-                        "top_muga": top_muga,
-                        "eguneko_azkena": posizioa == len(hautatutakoak),
-                    }
-                )
+            balio_zerrenda.extend(
+                self._eguneko_toparen_balioak(eguna, hautatutakoak, hasiera, amaiera, top_muga)
+            )
         return balio_zerrenda
 
+    # 8. zatia: Emaitzak Odoo-n gorde
     @api.model
     def kargatu_estatistikak(self, hasiera_data, amaiera_data, top_muga=5, iturburua_eguneratu=False):
         balio_zerrenda = self._eraiki_eguneko_topa(
@@ -243,6 +285,7 @@ class ErronkaEgunekoProduktuTopaMorroia(models.TransientModel):
         gaur = fields.Date.to_date(fields.Date.context_today(self))
         return gaur - timedelta(days=6)
 
+    # 9. zatia: Wizard-etik prozesua abiarazi eta emaitza ireki
     def action_sortu(self):
         self.ensure_one()
 
