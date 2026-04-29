@@ -32,7 +32,7 @@ class ErronkaLanpostu(models.Model):
         return (
             os.environ.get("ERRONKA_API_BASE_URL")
             or os.environ.get("ERRONKA_API_URL")
-            or "http://host.docker.internal:5101"
+            or "http://192.168.10.5:5000"
         )
 
     @api.model

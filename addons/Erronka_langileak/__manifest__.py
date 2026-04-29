@@ -7,7 +7,7 @@
     "license": "LGPL-3",
     "author": "Goierri Eskola",
     "website": "",
-    "depends": ["base"],
+    "depends": ["base", "hr"],
     "data": [
         "security/ir.model.access.csv",
         "views/langile_views.xml",

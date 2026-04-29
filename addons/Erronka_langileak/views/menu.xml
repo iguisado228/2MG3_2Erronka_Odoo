@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <odoo>
-    <menuitem id="menu_erronka_root" name="Erronka" sequence="10"/>
+    <menuitem id="menu_erronka_root" name="Langileak" sequence="10"/>
     <menuitem id="menu_erronka_langileak_root" name="Langileak" parent="menu_erronka_root" sequence="10"/>
 
     <menuitem id="menu_erronka_langileak" name="Trabajadores" parent="menu_erronka_langileak_root" action="action_erronka_langile" sequence="10"/>
