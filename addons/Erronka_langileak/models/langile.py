@@ -232,7 +232,11 @@ class ErronkaLangile(models.Model):
                 "langile_kodea": int(record.langile_kodea),
                 "helbidea": record.helbidea,
                 "lanpostuaId": int(lanpostu_ext_id),
-                "lanpostua": {"id": int(lanpostu_ext_id)},
+                "lanpostua": {
+                    "id": int(lanpostu_ext_id),
+                    "lanpostu_izena": record.lanpostu_id.name or "",
+                    "Lanpostu_izena": record.lanpostu_id.name or "",
+                },
             }
 
             password_plain = self.env.context.get("api_password_plain")
