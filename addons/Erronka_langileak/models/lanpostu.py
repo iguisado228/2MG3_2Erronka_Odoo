@@ -97,7 +97,7 @@ class ErronkaLanpostu(models.Model):
 
             if not record.active:
                 if external_id:
-                    self._api_request("DELETE", f"/api/odoo/lanpostuak/{external_id}")
+                    self._api_request("DELETE", f"/api/lanpostuak/{external_id}")
                 continue
 
             if not record.name:
@@ -106,9 +106,9 @@ class ErronkaLanpostu(models.Model):
             payload = {"lanpostu_izena": record.name}
 
             if external_id:
-                self._api_request("PUT", f"/api/odoo/lanpostuak/{external_id}", payload=payload)
+                self._api_request("PUT", f"/api/lanpostuak/{external_id}", payload=payload)
             else:
-                data = self._api_request("POST", "/api/odoo/lanpostuak", payload=payload) or {}
+                data = self._api_request("POST", "/api/lanpostuak", payload=payload) or {}
                 returned_id = data.get("id")
                 if returned_id:
                     record.with_context(skip_mysql_push=True).write({"external_id": int(returned_id)})
@@ -165,7 +165,7 @@ class ErronkaLanpostu(models.Model):
 
         if not self.env.context.get("skip_mysql_push") and not self.env.context.get("skip_api_push") and external_ids:
             for ext_id in external_ids:
-                self._api_request("DELETE", f"/api/odoo/lanpostuak/{int(ext_id)}")
+                self._api_request("DELETE", f"/api/lanpostuak/{int(ext_id)}")
 
         return result
 

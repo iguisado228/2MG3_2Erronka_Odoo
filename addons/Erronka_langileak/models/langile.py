@@ -208,7 +208,7 @@ class ErronkaLangile(models.Model):
 
             if not record.active:
                 if external_id:
-                    self._api_request("DELETE", f"/api/odoo/langileak/{external_id}")
+                    self._api_request("DELETE", f"/api/langileak/{external_id}")
                 continue
 
             if not record.lanpostu_id.external_id:
@@ -239,9 +239,9 @@ class ErronkaLangile(models.Model):
                 payload["pasahitza"] = password_plain
 
             if external_id:
-                self._api_request("PUT", f"/api/odoo/langileak/{external_id}", payload=payload)
+                self._api_request("PUT", f"/api/langileak/{external_id}", payload=payload)
             else:
-                data = self._api_request("POST", "/api/odoo/langileak", payload=payload) or {}
+                data = self._api_request("POST", "/api/langileak", payload=payload) or {}
                 returned_id = data.get("id")
                 if returned_id:
                     record.with_context(skip_mysql_push=True).write({"external_id": int(returned_id)})
@@ -363,7 +363,7 @@ class ErronkaLangile(models.Model):
 
         if not self.env.context.get("skip_mysql_push") and not self.env.context.get("skip_api_push") and external_ids:
             for ext_id in external_ids:
-                self._api_request("DELETE", f"/api/odoo/langileak/{int(ext_id)}")
+                self._api_request("DELETE", f"/api/langileak/{int(ext_id)}")
 
         if users_to_disable:
             users_to_disable.write({"active": False})
