@@ -32,7 +32,7 @@ class ErronkaLanpostu(models.Model):
         return (
             os.environ.get("ERRONKA_API_BASE_URL")
             or os.environ.get("ERRONKA_API_URL")
-            or "http://host.docker.internal:5101"
+            or "http://192.168.10.5:5000"
         )
 
     @api.model
@@ -97,7 +97,7 @@ class ErronkaLanpostu(models.Model):
 
             if not record.active:
                 if external_id:
-                    self._api_request("DELETE", f"/api/odoo/lanpostuak/{external_id}")
+                    self._api_request("DELETE", f"/api/lanpostuak/{external_id}")
                 continue
 
             if not record.name:

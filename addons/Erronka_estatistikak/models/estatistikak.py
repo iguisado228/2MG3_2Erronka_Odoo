@@ -17,7 +17,7 @@ class ErronkaApiMixin(models.AbstractModel):
     # API helbidea: ingurune-aldagai bidez alda daiteke (docker/hosten arabera), kodea ukitu gabe.
     @api.model
     def _api_base_url(self):
-        return os.environ.get("ERRONKA_API_BASE_URL", "http://192.168.5.150:5101")
+        return os.environ.get("ERRONKA_API_BASE_URL", "http://192.168.10.5:5000")
 
     # APIari deia: method + path → JSON bueltatzen du.
     # Huts egiten badu, UserError botatzen du (Odoo-n popup moduan agertzeko).

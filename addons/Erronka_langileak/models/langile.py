@@ -56,7 +56,7 @@ class ErronkaLangile(models.Model):
         return (
             os.environ.get("ERRONKA_API_BASE_URL")
             or os.environ.get("ERRONKA_API_URL")
-            or "http://host.docker.internal:5101"
+            or "http://192.168.10.5:5000"
         )
 
     @api.model
@@ -208,7 +208,7 @@ class ErronkaLangile(models.Model):
 
             if not record.active:
                 if external_id:
-                    self._api_request("DELETE", f"/api/odoo/langileak/{external_id}")
+                    self._api_request("DELETE", f"/api/langileak/{external_id}")
                 continue
 
             if not record.lanpostu_id.external_id:
@@ -314,8 +314,9 @@ class ErronkaLangile(models.Model):
 
     @api.model_create_multi
     def create(self, vals_list):
-        password_list = []
-        cleaned_vals_list = []
+        updated_pairs = []
+        create_vals_list = []
+        create_passwords = []
         for vals in vals_list:
             vals = dict(vals)
             password_plain = vals.pop("password_new", None)
@@ -325,17 +326,35 @@ class ErronkaLangile(models.Model):
                     raise UserError(_("Las contraseñas no coinciden."))
                 vals["password_hash"] = self._hash_password(password_plain or "")
                 vals["password_reset_pending"] = False
-            password_list.append(password_plain)
-            cleaned_vals_list.append(vals)
+            odoo_user_id = vals.get("odoo_user_id")
+            if odoo_user_id:
+                existing = self.sudo().search([("odoo_user_id", "=", int(odoo_user_id))], limit=1)
+                if existing:
+                    existing.with_context(skip_mysql_push=True, skip_api_push=True).write(vals)
+                    updated_pairs.append((existing, password_plain))
+                    continue
+            create_vals_list.append(vals)
+            create_passwords.append(password_plain)
 
-        records = super().create(cleaned_vals_list)
-        for record, password_plain in zip(records, password_list):
+        created_records = super().create(create_vals_list) if create_vals_list else self.browse()
+        result_records = created_records
+        for existing, _password_plain in updated_pairs:
+            result_records |= existing
+
+        for record, password_plain in updated_pairs:
             if password_plain:
                 record.with_context(api_password_plain=password_plain)._push_langileak_to_api()
             else:
                 record._push_langileak_to_api()
             record._sync_odoo_user(password_plain=password_plain)
-        return records
+
+        for record, password_plain in zip(created_records, create_passwords):
+            if password_plain:
+                record.with_context(api_password_plain=password_plain)._push_langileak_to_api()
+            else:
+                record._push_langileak_to_api()
+            record._sync_odoo_user(password_plain=password_plain)
+        return result_records
 
     def write(self, vals):
         vals = dict(vals)
@@ -399,3 +418,83 @@ class ErronkaLangilePasswordWizard(models.TransientModel):
         self.ensure_one()
         self.langile_id.set_password_from_plain(self.password_new, self.password_new_confirm)
         return {"type": "ir.actions.act_window_close"}
+
+
+class ResUsers(models.Model):
+    _inherit = "res.users"
+
+    def action_create_employee(self):
+        self.ensure_one()
+
+        Langile = self.env["erronka.langile"].sudo()
+        existing_all = Langile.search([("odoo_user_id", "=", self.id)])
+        existing = existing_all[:1]
+        if len(existing_all) > 1:
+            (existing_all - existing).write({"active": False, "odoo_user_id": False})
+
+        if not existing and self.login:
+            existing_login = Langile.search([("erabiltzaile_izena", "=", self.login)], limit=1)
+            if existing_login:
+                if existing_login.odoo_user_id and existing_login.odoo_user_id.id != self.id:
+                    raise UserError(
+                        _(
+                            "No se puede crear/enlazar el trabajador porque ya existe un registro con el nombre de usuario '%(login)s' enlazado a otro usuario de Odoo."
+                        )
+                        % {"login": self.login}
+                    )
+                if not existing_login.odoo_user_id:
+                    existing_login.with_context(skip_user_sync=True, skip_api_push=True, skip_mysql_push=True).write(
+                        {"odoo_user_id": self.id}
+                    )
+                existing = existing_login
+
+        if "hr.employee" in self.env and "employee_id" in self._fields:
+            employees = self.env["hr.employee"].sudo().search([("user_id", "=", self.id)])
+            if self.employee_id:
+                employees |= self.employee_id.sudo()
+            if employees:
+                try:
+                    employees.write({"active": False, "user_id": False})
+                except Exception:
+                    employees.write({"active": False})
+                try:
+                    self.sudo().write({"employee_id": False})
+                except Exception:
+                    pass
+
+        form_view = self.env.ref("Erronka_langileak.view_erronka_langile_form")
+        action = self.env.ref("Erronka_langileak.action_erronka_langile").read()[0]
+
+        if existing:
+            action.update(
+                {
+                    "view_mode": "form",
+                    "views": [(form_view.id, "form")],
+                    "res_id": existing.id,
+                    "context": dict(self.env.context),
+                }
+            )
+            return action
+
+        default_vals = {
+            "default_odoo_user_id": self.id,
+            "default_erabiltzaile_izena": self.login or "",
+        }
+
+        if self.name:
+            parts = [p for p in (self.name or "").strip().split(" ") if p]
+            if parts:
+                default_vals["default_izena"] = parts[0]
+                default_vals["default_abizena"] = " ".join(parts[1:]) or parts[0]
+
+        ctx = dict(self.env.context)
+        ctx.update(default_vals)
+
+        action.update(
+            {
+                "view_mode": "form",
+                "views": [(form_view.id, "form")],
+                "context": ctx,
+            }
+        )
+        return action
