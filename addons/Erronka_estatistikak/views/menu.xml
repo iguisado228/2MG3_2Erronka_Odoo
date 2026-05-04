@@ -10,4 +10,6 @@
     <menuitem id="menu_erronka_estatistikak_stocka" name="Stocka" parent="menu_erronka_estatistikak_root" action="action_erronka_estatistikak_open_stocka" sequence="30"/>
     <!-- Hau popup bat da: dena batera eguneratzeko (wizard) -->
     <menuitem id="menu_erronka_estatistikak_eguneratu" name="Eguneratu" parent="menu_erronka_estatistikak_root" action="action_erronka_estatistika_eguneratu_wizard" sequence="40"/>
+    <!-- PDF export-a: menu zuzena, board dashboard-etik ere erraz hartzeko -->
+    <menuitem id="menu_erronka_estatistikak_export_pdf" name="Exportar PDF" parent="menu_erronka_estatistikak_root" action="action_erronka_estatistikak_export_pdf" sequence="50"/>
 </odoo>

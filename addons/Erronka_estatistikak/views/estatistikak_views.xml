@@ -62,6 +62,17 @@ action["context"] = dict(env.context)
         </field>
     </record>
 
+    <record id="action_erronka_estatistikak_export_pdf" model="ir.actions.server">
+        <field name="name">Estatistikak - Exportar PDF</field>
+        <field name="model_id" ref="model_erronka_estatistika_dashboard" />
+        <field name="state">code</field>
+        <field name="code">
+dashboard = env["erronka.estatistika.dashboard"].create({})
+action = env.ref("Erronka_estatistikak.action_report_erronka_estatistikak_pdf").report_action(dashboard)
+action["context"] = dict(env.context)
+        </field>
+    </record>
+
     <!-- Dashboard-eko grafiko txikiak egiteko action-ak (board view barruan erabiltzen dira) -->
     <record id="action_erronka_estatistika_salmenta_graph_only" model="ir.actions.act_window">
         <field name="name">Salmentak</field>
@@ -137,6 +148,17 @@ action["context"] = dict(env.context)
         <field name="target">current</field>
     </record>
 
+    <record id="action_report_erronka_estatistikak_pdf" model="ir.actions.report">
+        <field name="name">Estatistikak (PDF)</field>
+        <field name="model">erronka.estatistika.dashboard</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">erronka_estatistikak.report_estatistikak_pdf</field>
+        <field name="report_file">erronka_estatistikak.report_estatistikak_pdf</field>
+        <field name="binding_model_id" ref="model_erronka_estatistika_dashboard" />
+        <field name="binding_type">report</field>
+        <field name="print_report_name">'Estatistikak - %s' % (object.id)</field>
+    </record>
+
     <!-- Beste dashboard “sinplea”: zenbakiak + botoiak (TransientModel-eko form) -->
     <record id="view_erronka_estatistika_dashboard_form" model="ir.ui.view">
         <field name="name">erronka.estatistika.dashboard.form</field>
@@ -147,6 +169,8 @@ action["context"] = dict(env.context)
                     <!-- Hau server action bat da: datuak eguneratu + board berriz kargatu -->
                     <button type="action" name="%(action_erronka_estatistikak_open_dashboard)d"
                         string="Birkargatu" class="oe_highlight" />
+                    <button type="action" name="%(action_report_erronka_estatistikak_pdf)d"
+                        string="Exportar PDF" class="btn-secondary" />
                 </header>
                 <sheet>
                     <group>
@@ -348,4 +372,177 @@ action["context"] = dict(env.context)
         <field name="view_id" ref="view_erronka_estatistika_eguneratu_wizard_form" />
         <field name="target">new</field>
     </record>
+
+    <record id="view_report_estatistikak_pdf" model="ir.ui.view">
+        <field name="name">erronka_estatistikak.report_estatistikak_pdf</field>
+        <field name="type">qweb</field>
+        <field name="key">erronka_estatistikak.report_estatistikak_pdf</field>
+        <field name="arch" type="xml">
+            <t t-name="erronka_estatistikak.report_estatistikak_pdf">
+                <t t-call="web.html_container">
+                    <t t-call="web.external_layout">
+                        <t t-set="doc" t-value="docs and docs[0] or False" />
+                        <div class="page">
+                            <h2>Erronka Estatistikak</h2>
+                            <p>
+                                <strong>Data:</strong>
+                                <t t-esc="report_date_str" />
+                            </p>
+
+                            <h3>Salmentak</h3>
+                            <div t-raw="sales_chart_svg" />
+                            <table class="table table-sm o_main_table" style="width: 100%; margin-top: 8px;">
+                                <thead>
+                                    <tr>
+                                        <th>Eguna</th>
+                                        <th style="text-align:right;">Salmenta totala</th>
+                                        <th style="text-align:right;">Erreserbak</th>
+                                        <th style="text-align:right;">Ticket (avg)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="sales_rows" t-as="r">
+                                        <tr>
+                                            <td><t t-esc="r['eguna']" /></td>
+                                            <td style="text-align:right;"><t t-esc="r['salmenta_totala']" /></td>
+                                            <td style="text-align:right;"><t t-esc="r['erreserba_kopurua']" /></td>
+                                            <td style="text-align:right;"><t t-esc="r['ticket_batezbestekoa']" /></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+
+                            <h3 style="margin-top: 18px;">Produktuak (ordainduta)</h3>
+                            <div t-raw="products_chart_svg" />
+                            <table class="table table-sm o_main_table" style="width: 100%; margin-top: 8px;">
+                                <thead>
+                                    <tr>
+                                        <th>Produktua</th>
+                                        <th style="text-align:right;">Kantitatea</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="product_rows" t-as="p">
+                                        <tr>
+                                            <td><t t-esc="p['produktua']" /></td>
+                                            <td style="text-align:right;"><t t-esc="p['kantitatea']" /></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+
+                            <h3 style="margin-top: 18px;">Stocka</h3>
+                            <div t-raw="stock_chart_svg" />
+                            <table class="table table-sm o_main_table" style="width: 100%; margin-top: 8px;">
+                                <thead>
+                                    <tr>
+                                        <th>Osagaia</th>
+                                        <th style="text-align:right;">Stock</th>
+                                        <th style="text-align:right;">Prezioa</th>
+                                        <th>Azken eguneraketa</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="stock_rows[:50]" t-as="s">
+                                        <tr>
+                                            <td><t t-esc="s['osagaia']" /></td>
+                                            <td style="text-align:right;"><t t-esc="s['stock']" /></td>
+                                            <td style="text-align:right;"><t t-esc="s['prezioa']" /></td>
+                                            <td><t t-esc="s['azken_eguneraketa']" /></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                            <p style="margin-top: 10px; font-size: 11px;">
+                                Oharra: taulak laburtuta daude (adibidez stockean 50 lerro). Datu guztiak Odoo-n ikus daitezke.
+                            </p>
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </field>
+    </record>
+
+    <template id="report_estatistikak_pdf">
+        <t t-call="web.html_container">
+            <t t-call="web.external_layout">
+                <t t-set="doc" t-value="docs and docs[0] or False" />
+                <div class="page">
+                    <h2>Erronka Estatistikak</h2>
+                    <p>
+                        <strong>Data:</strong>
+                        <t t-esc="report_date_str" />
+                    </p>
+
+                    <h3>Salmentak</h3>
+                    <div t-raw="sales_chart_svg" />
+                    <table class="table table-sm o_main_table" style="width: 100%; margin-top: 8px;">
+                        <thead>
+                            <tr>
+                                <th>Eguna</th>
+                                <th style="text-align:right;">Salmenta totala</th>
+                                <th style="text-align:right;">Erreserbak</th>
+                                <th style="text-align:right;">Ticket (avg)</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="sales_rows" t-as="r">
+                                <tr>
+                                    <td><t t-esc="r['eguna']" /></td>
+                                    <td style="text-align:right;"><t t-esc="r['salmenta_totala']" /></td>
+                                    <td style="text-align:right;"><t t-esc="r['erreserba_kopurua']" /></td>
+                                    <td style="text-align:right;"><t t-esc="r['ticket_batezbestekoa']" /></td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin-top: 18px;">Produktuak (ordainduta)</h3>
+                    <div t-raw="products_chart_svg" />
+                    <table class="table table-sm o_main_table" style="width: 100%; margin-top: 8px;">
+                        <thead>
+                            <tr>
+                                <th>Produktua</th>
+                                <th style="text-align:right;">Kantitatea</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="product_rows" t-as="p">
+                                <tr>
+                                    <td><t t-esc="p['produktua']" /></td>
+                                    <td style="text-align:right;"><t t-esc="p['kantitatea']" /></td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+
+                    <h3 style="margin-top: 18px;">Stocka</h3>
+                    <div t-raw="stock_chart_svg" />
+                    <table class="table table-sm o_main_table" style="width: 100%; margin-top: 8px;">
+                        <thead>
+                            <tr>
+                                <th>Osagaia</th>
+                                <th style="text-align:right;">Stock</th>
+                                <th style="text-align:right;">Prezioa</th>
+                                <th>Azken eguneraketa</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <t t-foreach="stock_rows[:50]" t-as="s">
+                                <tr>
+                                    <td><t t-esc="s['osagaia']" /></td>
+                                    <td style="text-align:right;"><t t-esc="s['stock']" /></td>
+                                    <td style="text-align:right;"><t t-esc="s['prezioa']" /></td>
+                                    <td><t t-esc="s['azken_eguneraketa']" /></td>
+                                </tr>
+                            </t>
+                        </tbody>
+                    </table>
+                    <p style="margin-top: 10px; font-size: 11px;">
+                        Oharra: taulak laburtuta daude (adibidez stockean 50 lerro). Datu guztiak Odoo-n ikus daitezke.
+                    </p>
+                </div>
+            </t>
+        </t>
+    </template>
 </odoo>

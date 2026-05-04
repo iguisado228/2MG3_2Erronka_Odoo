@@ -3,6 +3,7 @@
 import json
 import os
 from datetime import datetime
+from html import escape
 
 from odoo import _, api, fields, models
 from odoo.exceptions import UserError
@@ -378,3 +379,123 @@ class ErronkaEstatistikaEguneratuWizard(models.TransientModel):
             self.env[model]._eguneratu_datuak()
         # Popup-a ixteko action bat bueltatzen dugu
         return {"type": "ir.actions.act_window_close"}
+
+
+class ReportErronkaEstatistikakPdf(models.AbstractModel):
+    _name = "report.erronka_estatistikak.report_estatistikak_pdf"
+    _description = "Erronka estatistikak PDF txostena"
+
+    def _svg_bar_chart(self, items, width=800, height=260, top_n=10):
+        items = [(str(k), float(v)) for (k, v) in (items or []) if v is not None]
+        items = sorted(items, key=lambda x: x[1], reverse=True)[: int(top_n)]
+        if not items:
+            return f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}"><text x="10" y="30" font-size="14">Ez dago daturik</text></svg>'
+
+        padding = 30
+        chart_w = width - padding * 2
+        chart_h = height - padding * 2
+        max_v = max(v for _, v in items) or 1.0
+        bar_gap = 8
+        bar_w = (chart_w - bar_gap * (len(items) - 1)) / max(len(items), 1)
+
+        rects = []
+        labels = []
+        for i, (label, v) in enumerate(items):
+            x = padding + i * (bar_w + bar_gap)
+            h = (v / max_v) * chart_h
+            y = padding + (chart_h - h)
+            rects.append(f'<rect x="{x:.2f}" y="{y:.2f}" width="{bar_w:.2f}" height="{h:.2f}" fill="#4F81BD" />')
+            safe_label = escape(label[:16])
+            labels.append(f'<text x="{x + bar_w / 2:.2f}" y="{height - 10}" font-size="10" text-anchor="middle">{safe_label}</text>')
+
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">'
+            f'<rect x="0" y="0" width="{width}" height="{height}" fill="white"/>'
+            f'{"".join(rects)}'
+            f'{"".join(labels)}'
+            f"</svg>"
+        )
+
+    def _svg_line_chart(self, points, width=800, height=260):
+        pts = [(str(x), float(y)) for (x, y) in (points or []) if y is not None]
+        if len(pts) < 2:
+            return f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}"><text x="10" y="30" font-size="14">Ez dago datu nahikorik</text></svg>'
+
+        padding = 30
+        chart_w = width - padding * 2
+        chart_h = height - padding * 2
+        ys = [y for _, y in pts]
+        min_y = min(ys)
+        max_y = max(ys)
+        span = (max_y - min_y) or 1.0
+
+        poly = []
+        labels = []
+        for i, (x_label, y_val) in enumerate(pts):
+            x = padding + (i / (len(pts) - 1)) * chart_w
+            y = padding + (1 - ((y_val - min_y) / span)) * chart_h
+            poly.append(f"{x:.2f},{y:.2f}")
+            if i in (0, len(pts) - 1) or i % max(1, (len(pts) // 6)) == 0:
+                safe_label = escape(x_label[-5:])
+                labels.append(f'<text x="{x:.2f}" y="{height - 10}" font-size="10" text-anchor="middle">{safe_label}</text>')
+
+        return (
+            f'<svg xmlns="http://www.w3.org/2000/svg" width="{width}" height="{height}">'
+            f'<rect x="0" y="0" width="{width}" height="{height}" fill="white"/>'
+            f'<polyline fill="none" stroke="#C0504D" stroke-width="2" points="{" ".join(poly)}" />'
+            f'{"".join(labels)}'
+            f"</svg>"
+        )
+
+    @api.model
+    def _get_report_values(self, docids, data=None):
+        self.env["erronka.estatistika.salmenta"]._eguneratu_datuak()
+        self.env["erronka.estatistika.produktua"]._eguneratu_datuak()
+        self.env["erronka.estatistika.osagaia_stock"]._eguneratu_datuak()
+
+        salmentak = self.env["erronka.estatistika.salmenta"].sudo().search([], order="eguna asc")
+        produktuak_paid = self.env["erronka.estatistika.produktua"].sudo().search([("ordainduta", "=", True)])
+        stocka = self.env["erronka.estatistika.osagaia_stock"].sudo().search([], order="stock asc, osagaia_izena asc")
+
+        sales_rows = [
+            {
+                "eguna": s.eguna,
+                "salmenta_totala": float(s.salmenta_totala),
+                "erreserba_kopurua": int(s.erreserba_kopurua),
+                "ticket_batezbestekoa": float(s.ticket_batezbestekoa),
+            }
+            for s in salmentak
+        ]
+
+        top_products = {}
+        for p in produktuak_paid:
+            key = p.produktua_izena or str(p.produktua_id)
+            top_products[key] = top_products.get(key, 0) + int(p.kantitatea)
+        top_products_items = sorted(top_products.items(), key=lambda x: x[1], reverse=True)
+
+        product_rows = [{"produktua": name, "kantitatea": int(qty)} for name, qty in top_products_items[:50]]
+
+        stock_rows = [
+            {
+                "osagaia": s.osagaia_izena,
+                "stock": int(s.stock),
+                "prezioa": float(s.prezioa),
+                "azken_eguneraketa": s.azken_eguneraketa,
+            }
+            for s in stocka
+        ]
+
+        sales_points = [(s.eguna.strftime("%Y-%m-%d"), float(s.ticket_batezbestekoa)) for s in salmentak if s.eguna]
+
+        return {
+            "doc_ids": docids,
+            "doc_model": "erronka.estatistika.dashboard",
+            "docs": self.env["erronka.estatistika.dashboard"].browse(docids),
+            "report_date_str": fields.Date.to_string(fields.Date.context_today(self)),
+            "sales_rows": sales_rows,
+            "product_rows": product_rows,
+            "stock_rows": stock_rows,
+            "sales_chart_svg": self._svg_line_chart(sales_points),
+            "products_chart_svg": self._svg_bar_chart(top_products_items),
+            "stock_chart_svg": self._svg_bar_chart([(r["osagaia"], r["stock"]) for r in stock_rows], top_n=10),
+        }
