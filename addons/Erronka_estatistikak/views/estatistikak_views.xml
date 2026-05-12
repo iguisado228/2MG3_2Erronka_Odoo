@@ -63,7 +63,7 @@ action["context"] = dict(env.context)
     </record>
 
     <record id="action_erronka_estatistikak_export_pdf" model="ir.actions.server">
-        <field name="name">Estatistikak - Exportar PDF</field>
+        <field name="name">Estatistikak - PDF-a exportatu</field>
         <field name="model_id" ref="model_erronka_estatistika_dashboard" />
         <field name="state">code</field>
         <field name="code">
@@ -170,7 +170,7 @@ action["context"] = dict(env.context)
                     <button type="action" name="%(action_erronka_estatistikak_open_dashboard)d"
                         string="Birkargatu" class="oe_highlight" />
                     <button type="action" name="%(action_report_erronka_estatistikak_pdf)d"
-                        string="Exportar PDF" class="btn-secondary" />
+                        string="PDF-a exportatu" class="btn-secondary" />
                 </header>
                 <sheet>
                     <group>
@@ -216,9 +216,10 @@ action["context"] = dict(env.context)
         <field name="arch" type="xml">
             <tree>
                 <header>
-                    <!-- type="object" → Python-eko metodo bat deitzen du (action_eguneratu) -->
                     <button name="action_eguneratu" type="object" string="Eguneratu datuak"
                         class="oe_highlight" />
+                    <button name="action_exportar_pdf" type="object" string="PDF-a exportatu"
+                        class="btn-secondary" />
                 </header>
                 <field name="eguna" />
                 <field name="salmenta_totala" />
@@ -259,7 +260,7 @@ action["context"] = dict(env.context)
     <record id="action_erronka_estatistika_salmenta" model="ir.actions.act_window">
         <field name="name">Salmentak</field>
         <field name="res_model">erronka.estatistika.salmenta</field>
-        <field name="view_mode">graph</field>
+        <field name="view_mode">graph,tree</field>
         <field name="view_id" ref="view_erronka_estatistika_salmenta_graph" />
         <field name="search_view_id" ref="view_erronka_estatistika_salmenta_search" />
     </record>
@@ -271,9 +272,10 @@ action["context"] = dict(env.context)
         <field name="arch" type="xml">
             <tree>
                 <header>
-                    <!-- Botoi honek modeloko action_eguneratu deitzen du -->
                     <button name="action_eguneratu" type="object" string="Eguneratu datuak"
                         class="oe_highlight" />
+                    <button name="action_exportar_pdf" type="object" string="PDF-a exportatu"
+                        class="btn-secondary" />
                 </header>
                 <field name="eguna" />
                 <field name="produktua_izena" />
@@ -301,7 +303,7 @@ action["context"] = dict(env.context)
     <record id="action_erronka_estatistika_produktua" model="ir.actions.act_window">
         <field name="name">Produktuak</field>
         <field name="res_model">erronka.estatistika.produktua</field>
-        <field name="view_mode">graph</field>
+        <field name="view_mode">graph,tree</field>
         <field name="view_id" ref="view_erronka_estatistika_produktua_graph" />
     </record>
 
@@ -312,9 +314,10 @@ action["context"] = dict(env.context)
         <field name="arch" type="xml">
             <tree>
                 <header>
-                    <!-- Hemen ere: object botoia → Python action_eguneratu -->
                     <button name="action_eguneratu" type="object" string="Eguneratu datuak"
                         class="oe_highlight" />
+                    <button name="action_exportar_pdf" type="object" string="PDF-a exportatu"
+                        class="btn-secondary" />
                 </header>
                 <field name="osagaia_izena" />
                 <field name="stock" />
@@ -339,8 +342,39 @@ action["context"] = dict(env.context)
     <record id="action_erronka_estatistika_osagaia_stock" model="ir.actions.act_window">
         <field name="name">Stocka</field>
         <field name="res_model">erronka.estatistika.osagaia_stock</field>
-        <field name="view_mode">graph</field>
+        <field name="view_mode">graph,tree</field>
         <field name="view_id" ref="view_erronka_estatistika_osagaia_stock_graph" />
+    </record>
+
+    <!-- Wizard: PDF dena exportatu baino lehen ohartarazpena erakutsi -->
+    <record id="view_exportar_pdf_baiezdatzea_wizard_form" model="ir.ui.view">
+        <field name="name">erronka.exportar.pdf.baiezdatzea.wizard.form</field>
+        <field name="model">erronka.exportar.pdf.baiezdatzea.wizard</field>
+        <field name="arch" type="xml">
+            <form string="PDF-a exportatu">
+                <group>
+                    <div class="alert alert-warning" role="alert">
+                        <strong>Kontuz:</strong> PDF honek hiru atal guztietako informazioa biltzen du:
+                        <strong>Salmentak</strong>, <strong>Produktuak</strong> eta <strong>Stocka</strong>.<br/><br/>
+                        Atal zehatz baten informazioa soilik exportatu nahi baduzu, joan atal horretara
+                        eta bertako <em>"PDF-a exportatu"</em> botoia erabili.
+                    </div>
+                </group>
+                <footer>
+                    <button name="action_exportar_dena" type="object" string="Bai, dena exportatu"
+                        class="btn-primary" />
+                    <button string="Utzi" special="cancel" class="btn-secondary" />
+                </footer>
+            </form>
+        </field>
+    </record>
+
+    <record id="action_exportar_pdf_baiezdatzea_wizard" model="ir.actions.act_window">
+        <field name="name">PDF-a exportatu</field>
+        <field name="res_model">erronka.exportar.pdf.baiezdatzea.wizard</field>
+        <field name="view_mode">form</field>
+        <field name="view_id" ref="view_exportar_pdf_baiezdatzea_wizard_form" />
+        <field name="target">new</field>
     </record>
 
     <!-- Wizard = popup txiki bat: dena batera eguneratzeko botoiarekin -->
@@ -456,6 +490,156 @@ action["context"] = dict(env.context)
                             <p style="margin-top: 10px; font-size: 11px;">
                                 Oharra: taulak laburtuta daude (adibidez stockean 50 lerro). Datu guztiak Odoo-n ikus daitezke.
                             </p>
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </field>
+    </record>
+
+    <!-- Report actions sekzio bakoitzerako (tree view-eko "PDF-a exportatu" botoia) -->
+    <record id="action_report_salmentak_pdf" model="ir.actions.report">
+        <field name="name">Salmentak (PDF)</field>
+        <field name="model">erronka.estatistika.salmenta</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">erronka_estatistikak.salmentak_pdf</field>
+        <field name="report_file">erronka_estatistikak.salmentak_pdf</field>
+        <field name="print_report_name">'Salmentak'</field>
+        <field name="binding_model_id" ref="model_erronka_estatistika_salmenta" />
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_produktuak_pdf" model="ir.actions.report">
+        <field name="name">Produktuak (PDF)</field>
+        <field name="model">erronka.estatistika.produktua</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">erronka_estatistikak.produktuak_pdf</field>
+        <field name="report_file">erronka_estatistikak.produktuak_pdf</field>
+        <field name="print_report_name">'Produktuak'</field>
+        <field name="binding_model_id" ref="model_erronka_estatistika_produktua" />
+        <field name="binding_type">report</field>
+    </record>
+
+    <record id="action_report_stocka_pdf" model="ir.actions.report">
+        <field name="name">Stocka (PDF)</field>
+        <field name="model">erronka.estatistika.osagaia_stock</field>
+        <field name="report_type">qweb-pdf</field>
+        <field name="report_name">erronka_estatistikak.stocka_pdf</field>
+        <field name="report_file">erronka_estatistikak.stocka_pdf</field>
+        <field name="print_report_name">'Stocka'</field>
+        <field name="binding_model_id" ref="model_erronka_estatistika_osagaia_stock" />
+        <field name="binding_type">report</field>
+    </record>
+
+    <!-- QWeb template: Salmentak PDF (key lowercase para coincidir con report_name) -->
+    <record id="view_report_salmentak_pdf" model="ir.ui.view">
+        <field name="name">erronka_estatistikak.salmentak_pdf</field>
+        <field name="type">qweb</field>
+        <field name="key">erronka_estatistikak.salmentak_pdf</field>
+        <field name="arch" type="xml">
+            <t t-name="erronka_estatistikak.salmentak_pdf">
+                <t t-call="web.html_container">
+                    <t t-call="web.external_layout">
+                        <div class="page">
+                            <h2>Salmentak</h2>
+                            <p><strong>Data:</strong> <t t-esc="report_date_str" /></p>
+                            <div t-raw="sales_chart_svg" />
+                            <table class="table table-sm o_main_table" style="width:100%; margin-top:8px;">
+                                <thead>
+                                    <tr>
+                                        <th>Eguna</th>
+                                        <th style="text-align:right;">Salmenta totala</th>
+                                        <th style="text-align:right;">Erreserbak</th>
+                                        <th style="text-align:right;">Ticket (avg)</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="sales_rows" t-as="r">
+                                        <tr>
+                                            <td><t t-esc="r['eguna']" /></td>
+                                            <td style="text-align:right;"><t t-esc="r['salmenta_totala']" /></td>
+                                            <td style="text-align:right;"><t t-esc="r['erreserba_kopurua']" /></td>
+                                            <td style="text-align:right;"><t t-esc="r['ticket_batezbestekoa']" /></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </field>
+    </record>
+
+    <!-- QWeb template: Produktuak PDF -->
+    <record id="view_report_produktuak_pdf" model="ir.ui.view">
+        <field name="name">erronka_estatistikak.produktuak_pdf</field>
+        <field name="type">qweb</field>
+        <field name="key">erronka_estatistikak.produktuak_pdf</field>
+        <field name="arch" type="xml">
+            <t t-name="erronka_estatistikak.produktuak_pdf">
+                <t t-call="web.html_container">
+                    <t t-call="web.external_layout">
+                        <div class="page">
+                            <h2>Produktuak (ordainduta)</h2>
+                            <p><strong>Data:</strong> <t t-esc="report_date_str" /></p>
+                            <div t-raw="products_chart_svg" />
+                            <table class="table table-sm o_main_table" style="width:100%; margin-top:8px;">
+                                <thead>
+                                    <tr>
+                                        <th>Produktua</th>
+                                        <th style="text-align:right;">Kantitatea</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="product_rows" t-as="p">
+                                        <tr>
+                                            <td><t t-esc="p['produktua']" /></td>
+                                            <td style="text-align:right;"><t t-esc="p['kantitatea']" /></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
+                        </div>
+                    </t>
+                </t>
+            </t>
+        </field>
+    </record>
+
+    <!-- QWeb template: Stocka PDF -->
+    <record id="view_report_stocka_pdf" model="ir.ui.view">
+        <field name="name">erronka_estatistikak.stocka_pdf</field>
+        <field name="type">qweb</field>
+        <field name="key">erronka_estatistikak.stocka_pdf</field>
+        <field name="arch" type="xml">
+            <t t-name="erronka_estatistikak.stocka_pdf">
+                <t t-call="web.html_container">
+                    <t t-call="web.external_layout">
+                        <div class="page">
+                            <h2>Stocka</h2>
+                            <p><strong>Data:</strong> <t t-esc="report_date_str" /></p>
+                            <div t-raw="stock_chart_svg" />
+                            <table class="table table-sm o_main_table" style="width:100%; margin-top:8px;">
+                                <thead>
+                                    <tr>
+                                        <th>Osagaia</th>
+                                        <th style="text-align:right;">Stock</th>
+                                        <th style="text-align:right;">Prezioa</th>
+                                        <th>Azken eguneraketa</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <t t-foreach="stock_rows" t-as="s">
+                                        <tr>
+                                            <td><t t-esc="s['osagaia']" /></td>
+                                            <td style="text-align:right;"><t t-esc="s['stock']" /></td>
+                                            <td style="text-align:right;"><t t-esc="s['prezioa']" /></td>
+                                            <td><t t-esc="s['azken_eguneraketa']" /></td>
+                                        </tr>
+                                    </t>
+                                </tbody>
+                            </table>
                         </div>
                     </t>
                 </t>

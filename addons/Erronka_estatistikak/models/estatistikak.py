@@ -143,6 +143,10 @@ class ErronkaEstatistikaSalmenta(models.Model):
             record.eguna_key_quarter = f"{d.year}-Q{quarter}"
             record.eguna_key_year = str(d.year)
 
+    def action_exportar_pdf(self):
+        records = self.env["erronka.estatistika.salmenta"].sudo().search([])
+        return self.env.ref("Erronka_estatistikak.action_report_salmentak_pdf").report_action(records)
+
     # Salmentak API-tik hartu, egunaren arabera batu, eta Odoo-n gordetzen du (grafikoetarako).
     @api.model
     def _eguneratu_datuak(self):
@@ -202,6 +206,10 @@ class ErronkaEstatistikaProduktua(models.Model):
         # Egun + produktu + ordainduta konbinazioa bakarra: datuak ez bikoizteko.
         ("day_product_unique", "unique(eguna, produktua_id, ordainduta)", "Egun/produktua/ordainduta konbinazioa bakarra izan behar da."),
     ]
+
+    def action_exportar_pdf(self):
+        records = self.env["erronka.estatistika.produktua"].sudo().search([])
+        return self.env.ref("Erronka_estatistikak.action_report_produktuak_pdf").report_action(records)
 
     # Produktuen estatistikak: erreserbak + eskariak lotu, eta produktu bakoitzeko agregatu.
     @api.model
@@ -291,6 +299,10 @@ class ErronkaEstatistikaOsagaiaStock(models.Model):
         ("osagaia_unique", "unique(osagaia_id)", "Osagai bakoitzeko erregistro bakarra egon daiteke."),
     ]
 
+    def action_exportar_pdf(self):
+        records = self.env["erronka.estatistika.osagaia_stock"].sudo().search([])
+        return self.env.ref("Erronka_estatistikak.action_report_stocka_pdf").report_action(records)
+
     # Stocka: API-tik osagai zerrenda hartu eta Odoo-n sinkronizatu.
     @api.model
     def _eguneratu_datuak(self):
@@ -368,6 +380,15 @@ class ErronkaEstatistikaDashboard(models.TransientModel):
         return res
 
 
+class ErronkaExportarPdfBaieztatzeaWizard(models.TransientModel):
+    _name = "erronka.exportar.pdf.baiezdatzea.wizard"
+    _description = "PDF exportatzeko baieztatze-leihoa"
+
+    def action_exportar_dena(self):
+        dashboard = self.env["erronka.estatistika.dashboard"].create({})
+        return self.env.ref("Erronka_estatistikak.action_report_erronka_estatistikak_pdf").report_action(dashboard)
+
+
 class ErronkaEstatistikaEguneratuWizard(models.TransientModel):
     _name = "erronka.estatistika.eguneratu.wizard"
     _description = "Estatistikak eguneratzeko wizard-a"
@@ -379,6 +400,91 @@ class ErronkaEstatistikaEguneratuWizard(models.TransientModel):
             self.env[model]._eguneratu_datuak()
         # Popup-a ixteko action bat bueltatzen dugu
         return {"type": "ir.actions.act_window_close"}
+
+
+class ReportErronkaSalmentakPdf(models.AbstractModel):
+    _name = "report.erronka_estatistikak.salmentak_pdf"
+    _description = "Salmentak PDF txostena"
+
+    @api.model
+    def _get_report_values(self, docids, data=None):
+        salmentak = self.env["erronka.estatistika.salmenta"].sudo().search([], order="eguna asc")
+        main_rpt = self.env["report.erronka_estatistikak.report_estatistikak_pdf"]
+
+        sales_rows = [
+            {
+                "eguna": s.eguna,
+                "salmenta_totala": float(s.salmenta_totala),
+                "erreserba_kopurua": int(s.erreserba_kopurua),
+                "ticket_batezbestekoa": float(s.ticket_batezbestekoa),
+            }
+            for s in salmentak
+        ]
+        sales_points = [(s.eguna.strftime("%Y-%m-%d"), float(s.ticket_batezbestekoa)) for s in salmentak if s.eguna]
+
+        return {
+            "doc_ids": docids,
+            "doc_model": "erronka.estatistika.salmenta",
+            "docs": salmentak,
+            "report_date_str": fields.Date.to_string(fields.Date.context_today(self)),
+            "sales_rows": sales_rows,
+            "sales_chart_svg": main_rpt._svg_line_chart(sales_points),
+        }
+
+
+class ReportErronkaProduktuaPdf(models.AbstractModel):
+    _name = "report.erronka_estatistikak.produktuak_pdf"
+    _description = "Produktuak PDF txostena"
+
+    @api.model
+    def _get_report_values(self, docids, data=None):
+        produktuak_paid = self.env["erronka.estatistika.produktua"].sudo().search([("ordainduta", "=", True)])
+        main_rpt = self.env["report.erronka_estatistikak.report_estatistikak_pdf"]
+
+        top_products = {}
+        for p in produktuak_paid:
+            key = p.produktua_izena or str(p.produktua_id)
+            top_products[key] = top_products.get(key, 0) + int(p.kantitatea)
+        top_products_items = sorted(top_products.items(), key=lambda x: x[1], reverse=True)
+        product_rows = [{"produktua": name, "kantitatea": int(qty)} for name, qty in top_products_items]
+
+        return {
+            "doc_ids": docids,
+            "doc_model": "erronka.estatistika.produktua",
+            "docs": produktuak_paid,
+            "report_date_str": fields.Date.to_string(fields.Date.context_today(self)),
+            "product_rows": product_rows,
+            "products_chart_svg": main_rpt._svg_bar_chart(top_products_items),
+        }
+
+
+class ReportErronkaStockaPdf(models.AbstractModel):
+    _name = "report.erronka_estatistikak.stocka_pdf"
+    _description = "Stocka PDF txostena"
+
+    @api.model
+    def _get_report_values(self, docids, data=None):
+        stocka = self.env["erronka.estatistika.osagaia_stock"].sudo().search([], order="stock asc, osagaia_izena asc")
+        main_rpt = self.env["report.erronka_estatistikak.report_estatistikak_pdf"]
+
+        stock_rows = [
+            {
+                "osagaia": s.osagaia_izena,
+                "stock": int(s.stock),
+                "prezioa": float(s.prezioa),
+                "azken_eguneraketa": s.azken_eguneraketa,
+            }
+            for s in stocka
+        ]
+
+        return {
+            "doc_ids": docids,
+            "doc_model": "erronka.estatistika.osagaia_stock",
+            "docs": stocka,
+            "report_date_str": fields.Date.to_string(fields.Date.context_today(self)),
+            "stock_rows": stock_rows,
+            "stock_chart_svg": main_rpt._svg_bar_chart([(r["osagaia"], r["stock"]) for r in stock_rows], top_n=10),
+        }
 
 
 class ReportErronkaEstatistikakPdf(models.AbstractModel):
